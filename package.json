@@ -1,0 +1,10 @@
+{
+  "name": "retail-insight-lite",
+  "version": "1.5.0",
+  "private": true,
+  "description": "Browser-based sales, inventory and purchasing analysis with local CSV processing.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node tests/core.test.cjs && node tests/time.test.cjs && node tests/budget.test.cjs && node tests/trend.test.cjs && node tests/new-products.test.cjs"
+  }
+}
