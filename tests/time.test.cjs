@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict');const R=require('../core.js'),T=require('../time-analysis.js');let count=0;
+const test=(name,fn)=>{fn();count++;console.log('PASS '+name);};
+const row=(date,qty,amount=qty*100)=>({key:'A',code:'001',name:'テスト商品',store:'1',date:R.day(date),qty,amount,discount:0,points:0,intax:0});
+const opts={start:R.day('2026-09-01'),end:R.day('2026-09-30'),net:false};
+test('weekday denominators include zero sales dates',()=>{const x=T.analyze([row('2026-09-01',10)],opts,'weekday');assert.equal(x.find(b=>b.key===2).days,5);assert.equal(x.find(b=>b.key===2).avg,2);assert.equal(x.find(b=>b.key===1).days,4);assert.equal(x.find(b=>b.key===1).avg,0);assert.equal(x.reduce((s,b)=>s+b.days,0),30);});
+test('day of month 31 only counts existing calendar dates',()=>{const x=T.analyze([row('2026-07-31',9)],{...opts,start:R.day('2026-07-01')},'monthday');assert.equal(x.find(b=>b.key===31).days,2);assert.equal(x.find(b=>b.key===31).avg,4.5);assert.equal(x.find(b=>b.key===30).days,3);});
+test('daily zero sales and outside-period rows',()=>{const x=T.analyze([row('2026-08-31',500),row('2026-09-01',3)],opts,'date');assert.equal(x.length,30);assert.equal(x[0].qty,3);assert.equal(x[1].qty,0);});
+test('returns do not reduce demand but do reduce revenue',()=>{const x=T.analyze([row('2026-09-01',10),row('2026-09-01',-2)],opts,'date')[0];assert.equal(x.qty,10);assert.equal(x.returns,2);assert.equal(x.revenue,800);});
+test('product average lift normalized to complete period',()=>{const x=T.analyze([row('2026-09-01',10)],opts,'weekday').find(b=>b.key===2).products[0];assert.equal(x.lift,6);});
+test('net allocations and store-product separation',()=>{const a={...row('2026-09-01',2,220),intax:20};const b={...row('2026-09-01',1),key:'B',store:'2'};const x=T.analyze([a,b],{...opts,net:true},'date')[0];assert.equal(x.revenue,300);assert.equal(x.products.length,2);});
+console.log(count+' time analysis tests passed');

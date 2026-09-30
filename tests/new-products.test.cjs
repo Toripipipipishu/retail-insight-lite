@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict'),N=require('../new-products.js'),R=require('../core.js');let n=0;const test=(t,f)=>{f();n++;console.log('PASS '+t);};const origin=R.day('2026-09-01'),opts={start:origin,end:origin+13},key='["1","001"]';const meta={key,code:'001',store:'1',name:'新商品',registered:origin-2,receipt:origin};
+const run=(sales=[],m=meta,o=opts)=>N.analyze([{key,stock:10,abc:'—'}],sales,[m],o,90,1).rows[0];
+test('unsold stocked product included with score zero',()=>{const p=run();assert.equal(p.status,'入荷後未販売');assert.equal(p.score,0);assert.equal(p.stock,10);});
+test('registration alone cannot prove unsold since receipt',()=>{const p=run([],{...meta,receipt:null});assert.equal(p.status,'入荷日未登録');assert.equal(p.score,null);});
+test('truncated history cannot classify lifetime unsold',()=>{const p=run([],meta,{...opts,start:origin+2});assert.equal(p.status,'履歴不足');assert.equal(p.score,null);});
+test('new item less than seven days has no score',()=>assert.equal(run([],meta,{start:origin,end:origin+4}).score,null));
+test('score transparent at target pace immediate first sale',()=>{const p=run([{key,date:origin,qty:14}]);assert.equal(p.score,100);assert.equal(p.delay,0);assert.equal(p.velocity,1);});
+test('returns separately recorded',()=>{const p=run([{key,date:origin,qty:14},{key,date:origin+1,qty:-2}]);assert.equal(p.sold,14);assert.equal(p.returns,2);});
+test('sale before initial receipt flags conflict',()=>{const p=run([{key,date:origin-1,qty:1}]);assert.equal(p.status,'日付要確認');assert.equal(p.score,null);});
+test('future receipt not classed as new or scored',()=>{const p=run([],{...meta,receipt:origin+30});assert.equal(p.status,'開始予定');assert.equal(p.isNew,false);assert.equal(p.score,null);});
+test('missing stock remains unknown and metadata-only rows included',()=>{const r=N.analyze([],[],[meta],opts,90,1);assert.equal(r.rows[0].stock,null);assert.equal(r.rows.length,1);});
+test('metadata parsing catches duplicates and store mismatch',()=>{const c=R.parseCSV('商品コード,店舗ID,初回入荷日\n001,1,2026-09-01');assert.equal(N.parse(c,R,true)[0].key,key);assert.throws(()=>N.parse(c,R,false));assert.throws(()=>N.parse({...c,rows:[...c.rows,...c.rows]},R,true));});
+console.log(n+' new product tests passed');

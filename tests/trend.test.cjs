@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),R=require('../core.js'),T=require('../product-trend.js');let n=0;
+const test=(name,fn)=>{fn();n++;console.log('PASS '+name);};const start=R.day('2026-09-01'),opts={start,end:start+29},key=JSON.stringify(['1','001']);
+const s=(day,qty)=>({date:start+day,qty,key});
+test('first sale is a proxy and elapsed starts at zero',()=>{const r=T.analyze([s(2,7)],opts,key);assert.equal(r.origin,start+2);assert.equal(r.series[0].elapsed,0);assert.equal(r.series.length,28);});
+test('rolling averages require complete windows including zero days',()=>{const r=T.analyze([s(0,7)],opts,key);assert.equal(r.series[5].ma7,null);assert.equal(r.series[6].ma7,1);assert.equal(r.series[7].ma7,0);assert.equal(r.series[28].ma30,null);assert.equal(r.series[29].ma30,7/30);});
+test('returns tracked without suppressing demand',()=>{const r=T.analyze([s(0,10),s(0,-2)],opts,key);assert.equal(r.series[0].qty,10);assert.equal(r.series[0].returns,2);});
+test('missing stock not interpolated or treated as zero',()=>{const r=T.analyze([s(0,1)],opts,key,null,[{key,date:start,stock:0},{key,date:start+2,stock:12}]);assert.equal(r.series[1].stock,null);assert.equal(r.knownStock,2);assert.equal(r.zeroStock,1);});
+test('specified launch wins, conflicts detected',()=>{const r=T.analyze([s(0,1),s(5,5)],opts,key,start+2);assert.equal(r.beforeLaunch,true);assert.equal(r.series[0].date,start+2);assert.throws(()=>T.analyze([],opts,key,start+40));});
+test('no sales retains unknown origin and zero comparison',()=>{const r=T.analyze([],opts,key);assert.equal(r.origin,null);assert.equal(r.ratio,null);assert.equal(r.series.length,30);});
+test('weekday balanced comparison uses two complete 7-day windows',()=>{const rows=[];for(let i=0;i<30;i++)rows.push(s(i,i>=23?2:1));const r=T.analyze(rows,opts,key);assert.equal(r.recent,2);assert.equal(r.previous,1);assert.equal(r.ratio,2);});
+test('history validation catches duplicate and store mismatch',()=>{const csv=R.parseCSV('日付,店舗ID,商品コード,在庫数\n2026-09-01,1,001,0');assert.equal(T.parseHistory(csv,R,true)[0].key,key);assert.throws(()=>T.parseHistory(csv,R,false));assert.throws(()=>T.parseHistory(R.parseCSV('日付,店舗ID,商品コード,在庫数\n2026-09-01,1,001,0\n2026-09-01,1,001,2'),R,true));});
+console.log(n+' trend tests passed');
